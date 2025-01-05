@@ -25,8 +25,7 @@ def train_heatmap(args):
     model = get_model(args)
     
     spine_loc_metrics = MetricHandler()
-    # spine_loc_metrics.add_metric(name='MSE', metric_fn=MSE(), is_accuracy=False) # loss
-    spine_loc_metrics.add_metric(name='WingLoss', metric_fn=WingLoss(), is_accuracy=False) # loss
+    spine_loc_metrics.add_metric(name='MSE', metric_fn=MSE(), is_accuracy=False) # loss
     
     eval_metrics = { # acc
         'bbIoU': bbIoU(threshold=0.5), 

@@ -3,7 +3,7 @@ pytest.main([__file__])
 
 import os
 
-from data_transforms import segmentation_transforms
+from data_transforms import binary_segmentation_transforms
 from data_transforms.classes import *
 from metrics.losses import *
 from metrics.metric_handler import MetricHandler
@@ -13,7 +13,7 @@ from prodigyopt import Prodigy
 from tqdm.autonotebook import tqdm
 from training.scripts import *
 from utils.constants import DEVICE, MODELS_PATH
-from utils.visualize import visualize_spine_segmentation
+from utils.visualize import visualize_spine_segmentation, visualize_vertebrae_segmentation
 
 
 
@@ -21,18 +21,13 @@ def train_segmentation(args):
     model = get_model(args)
 
     spine_seg_metrics = MetricHandler()
-    
     spine_seg_metrics.add_metric(name='DiceCELoss', metric_fn=DiceCELoss(), is_accuracy=False)
-    # spine_seg_metrics.add_metric(name='CrossEntropyLoss', metric_fn=CrossEntropyLoss(), is_accuracy=False)
 
-    num_classes = args.num_classes
-    eval_metrics = {'F1Score': F1Score(num_classes=num_classes),
-                    'Recall': Recall(num_classes=num_classes),
-                    'Precision': Precision(num_classes=num_classes),
-                    'Dice_Coef': DiceCoefficient(),
-                    # 'JaccardIndex': Jaccard(),
-                    # 'HausdorffDTLoss': HausdorffDTLoss(),
-                    # 'ID_Rate': IdentificationRate(),
+    eval_metrics = {'JaccardIndex': Jaccard(),
+                    'F1Score': F1Score(),
+                    'Recall': Recall(),
+                    'Precision': Precision(),
+                    # 'Hausdorff': Hausdorff()
     }
 
     for name, fn in eval_metrics.items():
@@ -57,13 +52,13 @@ def train_segmentation(args):
         'run_id': args.run_id
     }
 
-    transform_func = segmentation_transforms(args.input_shape)
+    transform_func = binary_segmentation_transforms(args.input_shape)
     train_loop(config=config,
                      metric_handler=spine_seg_metrics,
                      model=model,
                      model_name=args.model_name,
                      transforms_func=transform_func,
-                     visualize_func=visualize_spine_segmentation,
+                     visualize_func=visualize_vertebrae_segmentation,
                      optimizer=optimizer,
                      scheduler=scheduler,
                      use_wandb=args.use_wandb)
@@ -79,8 +74,7 @@ def train_segmentation(args):
     loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=NUM_WORKERS)
 
     model.to(DEVICE)
-    spine_seg_metrics.add_metric(name='HausdorffDistanceMetric', metric_fn=HausdorffMetric().to(DEVICE), is_accuracy=True)
-    # spine_seg_metrics.add_metric(name='Hausdorff', metric_fn=Hausdorff().to(DEVICE), is_accuracy=True)
+    spine_seg_metrics.add_metric(name='Hausdorff', metric_fn=Hausdorff().to(DEVICE), is_accuracy=True)
 
     with torch.no_grad():
         model.eval()
@@ -110,8 +104,7 @@ def train_segmentation(args):
                         aggregator.add_batch(outputs, locations)
                         patch_pbar.update(1)
 
-                # outputs = F.sigmoid(aggregator.get_output_tensor())#.cpu()
-                outputs = F.softmax(aggregator.get_output_tensor(), dim=1)
+                outputs = F.sigmoid(aggregator.get_output_tensor())#.cpu()
                 outputs = (outputs > 0.5).float()
 
                 _ = spine_seg_metrics.update(outputs.unsqueeze(0).to(DEVICE), targets.to(DEVICE), accumulate_loss=False)

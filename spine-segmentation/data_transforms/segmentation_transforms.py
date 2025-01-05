@@ -4,10 +4,51 @@ import torchio as tio
 from data_transforms.classes import PadDimTo, MaskCutout, AlgorithmicDenoise
 from utils.constants import remapping_binary
 from utils.misc import transform_timeit
-from monai.transforms import FillHoles
 from torchio.transforms import OneHot 
 
-def segmentation_transforms(data_shape: Tuple[int, int, int]):
+import numpy as np
+from scipy.ndimage import binary_fill_holes
+from skimage.morphology import convex_hull_image
+
+class MulticlassConvexHull(tio.Transform):
+    """
+    A torchio.Transform to compute the convex hull for each class in a label map.
+    """
+    def __init__(self, label_key: str = 'label'):
+        super().__init__()
+        self.label_key = label_key  # Key for the label map in the subject
+
+    def apply_transform(self, subject):
+        """
+        Applies the convex hull transformation to the label map in the subject.
+
+        Args:
+            subject (torchio.Subject): The input subject containing a label map.
+
+        Returns:
+            torchio.Subject: The transformed subject with convex hull applied to the label map.
+        """
+        # Extract the label map from the subject
+        label_map = subject[self.label_key]
+        label_data = label_map.data.squeeze().numpy()  # Convert to NumPy array
+
+        # Compute the convex hull for each class
+        unique_labels = np.unique(label_data)[1:]  # Exclude 0 (background)
+        result = np.zeros_like(label_data)
+
+        for label in unique_labels:
+            binary_mask = (label_data == label)
+            hull_mask = convex_hull_image(binary_mask)
+            result[hull_mask] = label
+
+        # Convert the result back to a torch tensor and update the subject
+        result_tensor = torch.from_numpy(result).unsqueeze(0)  # Add channel dimension
+        subject[self.label_key].set_data(result_tensor)
+
+        return subject
+
+
+def binary_segmentation_transforms(data_shape: Tuple[int, int, int]):
     """
     Creates preprocessing and postprocessing transformations for spine segmentation.
 
@@ -36,18 +77,16 @@ def segmentation_transforms(data_shape: Tuple[int, int, int]):
         tio.RandomFlip(axes = (2), flip_probability=0.5),
         tio.RandomGamma(log_gamma=0.3),
         tio.RescaleIntensity(out_min_max=(0,1)),
-        # tio.RemapLabels(remapping=remapping_int),
-        OneHot(num_classes=25),
-        # FillHoles(),
         PadDimTo(size=data_shape),
+        OneHot(num_classes=26),
+        # MulticlassConvexHull(label_key='label')  # Apply convex hull to each class
     ])
 
     spine_seg_val_post = tio.Compose([
         tio.RescaleIntensity(out_min_max=(0,1)), 
-        # tio.RemapLabels(remapping=remapping_int),
-        OneHot(num_classes=25),
-        # FillHoles(),
         PadDimTo(size=data_shape),
+        OneHot(num_classes=26),
+        # MulticlassConvexHull(label_key='label')  # Apply convex hull to each class
     ])
 
     spine_seg_train = tio.Compose([

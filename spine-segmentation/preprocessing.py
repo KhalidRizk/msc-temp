@@ -13,7 +13,6 @@ from data_transforms.classes import *
 from dataloader import VerSe, h5VerSe
 from tqdm import tqdm
 from utils.constants import COMPRESSION
-from scipy import ndimage
 
 
 def transform_to_str(transform):
@@ -180,89 +179,6 @@ def dataset_preprocessing(
     preprocess.preprocess_dataset(compression=compression, transform=transform)
 
 
-def morphological_cleanup(x):
-    from scipy import ndimage
-    x_np = x.numpy()
-    x_np = ndimage.binary_closing(x_np)
-    x_np = ndimage.binary_opening(x_np)
-    return torch.from_numpy(x_np)
-
-# def post_process_prediction(pred):
-#     import torch
-#     import numpy as np
-#     from scipy import ndimage
-#     from scipy.spatial import ConvexHull
-#     from skimage.measure import regionprops, label
-
-#     pred_np = pred.cpu().numpy()
-#     pred_hull = np.zeros_like(pred_np)
-
-#     for batch_idx in range(pred_np.shape[0]):  # Iterate over batch
-#         for channel_idx in range(pred_np.shape[1]):  # Iterate over channels
-#             spatial_data = pred_np[batch_idx, channel_idx]  # Extract spatial dimensions
-#             labeled, num = ndimage.label(spatial_data > 0.5)
-#             if num > 0:
-#                 sizes = ndimage.sum(spatial_data > 0.5, labeled, range(1, num + 1))
-#                 mask = sizes < (0.05 * sizes.max())
-#                 remove_pixel = mask[labeled - 1]
-#                 spatial_data[remove_pixel] = 0
-
-#             spatial_data = ndimage.binary_fill_holes(spatial_data > 0.5)
-#             labeled_hull, num_hull = label(spatial_data, return_num=True)
-
-#             for region in regionprops(labeled_hull):
-#                 coords = region.coords  # Extract coordinates for the region
-#                 if len(coords) >= 3:
-#                     hull = ConvexHull(coords)
-#                     for simplex in hull.simplices:
-#                         indices = coords[simplex].T
-#                         spatial_data[tuple(indices)] = 1
-
-#             pred_hull[batch_idx, channel_idx] = spatial_data
-
-#     return torch.from_numpy(pred_hull).to(pred.device)
-
-def post_process_prediction(pred):
-    import torch
-    import numpy as np
-    from scipy import ndimage
-    from scipy.spatial import ConvexHull
-    from skimage.measure import regionprops, label
-
-    pred_np = pred.cpu().numpy()
-    pred_hull = np.zeros_like(pred_np)
-
-    for batch_idx in range(pred_np.shape[0]):  # Iterate over batch
-        for channel_idx in range(pred_np.shape[1]):  # Iterate over channels
-            spatial_data = pred_np[batch_idx, channel_idx]  # Extract spatial dimensions
-            labeled, num = ndimage.label(spatial_data > 0.5)
-            if num > 0:
-                sizes = ndimage.sum(spatial_data > 0.5, labeled, range(1, num + 1))
-                mask = sizes < (0.05 * sizes.max())
-                remove_pixel = mask[labeled - 1]
-                spatial_data[remove_pixel] = 0
-
-            spatial_data = ndimage.binary_fill_holes(spatial_data > 0.5)
-            labeled_hull, num_hull = label(spatial_data, return_num=True)
-
-            for region in regionprops(labeled_hull):
-                coords = region.coords  # Extract coordinates for the region
-                if coords.shape[0] >= 3:  # At least 3 points required for ConvexHull
-                    coords = coords[:, -3:]  # Use only spatial dimensions
-                    if np.linalg.matrix_rank(coords) >= 2:  # Ensure points are at least 2D
-                        try:
-                            hull = ConvexHull(coords)
-                            for simplex in hull.simplices:
-                                indices = coords[simplex].T
-                                spatial_data[tuple(indices)] = 1
-                        except Exception as e:
-                            # Skip region if ConvexHull fails
-                            pass
-
-            pred_hull[batch_idx, channel_idx] = spatial_data
-
-    return torch.from_numpy(pred_hull).to(pred.device)
-
 
 if __name__ == "__main__":
     transform = tio.Compose([
@@ -270,7 +186,6 @@ if __name__ == "__main__":
         tio.Resample(1),
         tio.Clamp(-1024, 1024),
         tio.RescaleIntensity(out_min_max=(0, 1)),
-        MaskCutout(threshold=0.5),
-        tio.Lambda(lambda x: morphological_cleanup(x))
+        MaskCutout(threshold=0.5)
     ])
     dataset_preprocessing(out_name='cutout_dataset', transform=transform)

@@ -9,8 +9,6 @@ from monai.networks.utils import predict_segmentation
 from torch.utils.data import Dataset
 from utils.constants import HEATMAP
 from utils.misc import combine_bboxes_image, compute_bbox3d, create_bbox_image
-from preprocessing import post_process_prediction
-import os
 
 
 def visualize_spine_localization_heatmap(subject: tio.Subject, output_path: str, model: nn.Module, show: bool = False):
@@ -27,10 +25,6 @@ def visualize_spine_localization_heatmap(subject: tio.Subject, output_path: str,
         outputs = outputs.squeeze(0).cpu()
         targets = targets.cpu()
 
-        print("Input data range:", inputs.min(), inputs.max())
-        print("Ground truth range:", targets.min(), targets.max())
-        print("Output data range:", outputs.min(), outputs.max())
-
         subject = tio.Subject(
             input=tio.ScalarImage(tensor=inputs),
             target=tio.LabelMap(tensor=targets),
@@ -41,7 +35,7 @@ def visualize_spine_localization_heatmap(subject: tio.Subject, output_path: str,
         plt.close()
 
 
-def visualize_spine_localization_heatmap_detailed(subject: tio.Subject, output_path: str, model: nn.Module = None, show: bool = False, act: nn.Module = F.sigmoid):
+def visualize_spine_localization_heatmap_detailed(subject: tio.Subject, output_path: str, model: nn.Module = None, show: bool = False, act: nn.Module = F.softmax):
     if model:
         model.eval()
     with torch.no_grad():
@@ -91,10 +85,6 @@ def visualize_spine_segmentation(subject: tio.Subject, output_path: str, model: 
         targets = targets.cpu()
 
         outputs = (outputs > threshold).float()
-
-        print("Input data range:", inputs.min(), inputs.max())
-        print("Ground truth range:", targets.min(), targets.max())
-        print("Output data range:", outputs.min(), outputs.max())
 
         subject = tio.Subject(
             input=tio.ScalarImage(tensor=inputs),

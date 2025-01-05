@@ -168,15 +168,15 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer, 
             targets = data[target][tio.DATA]
 
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+            # print("inputs:", inputs.min(), inputs.max(), inputs.shape)
+            # print("targets:", targets.min(), targets.max(), targets.shape)
 
             optimizer.zero_grad()
 
             outputs = model(inputs)
             total_loss = metric_handler.update(outputs, targets, accumulate_loss=True)
 
-            print("Input data range:", inputs.min(), inputs.max())
-            print("Ground truth range:", targets.min(), targets.max())
-            print("Output data range:", outputs.min(), outputs.max())
+            # print("outputs:", outputs.min(), outputs.max(), outputs.shape)
 
             if total_loss is not None:
                 total_loss.backward()
@@ -259,7 +259,9 @@ def train_loop(config: dict,
             formatted_metrics, log_metrics, val_loss, val_acc = format_metrics(metric_handler, train_metrics, val_metrics)
 
             if epoch % 1 == 0:
-                visualize_func(subject=val_loader.dataset[0], output_path=os.path.join(images_path, f'{epoch}.png'),
+                random_idx = random.randint(0, 39)
+                # print(random_idx, val_loader.dataset.__len__())
+                visualize_func(subject=val_loader.dataset[random_idx], output_path=os.path.join(images_path, f'{epoch}.png'),
                                     model=model, show=False)
 
             if val_loss < best_val_loss:
@@ -303,8 +305,8 @@ def get_args():
 
     parser.add_argument('--data_path', type=str, required=True, help='Path to the dataset')
     parser.add_argument('--model_name', type=str, required=True, help='Name of the model for saving/loading')
-    parser.add_argument('--epochs', type=int, default=200, help='Number of epochs for training')
-    parser.add_argument('--batch_size', type=int, default=1, help='Batch size for training')
+    parser.add_argument('--epochs', type=int, default=300, help='Number of epochs for training')
+    parser.add_argument('--batch_size', type=int, default=4, help='Batch size for training')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate for the optimizer')
     parser.add_argument('--input_shape', type=int, nargs=3, default=(64, 64, 128), help='Input shape for the model')
     parser.add_argument('--model', type=str, default='UNet', help='Model architecture')
@@ -313,14 +315,13 @@ def get_args():
     parser.add_argument('--use_wandb', type=str2bool, nargs='?', const=True, default=False,
                     help='Use wandb for logging.')
     parser.add_argument('--run_id', type=str, default='', help='wandb run id.')
-    parser.add_argument('--num_classes', type=int, default=25)
 
     return parser.parse_args()
 
 
 def get_model(args):
     if args.model == 'AttentionUNet3D':
-        model = AttentionUNet3D(in_channels=1, out_channels=args.num_classes)
+        model = AttentionUNet3D(in_channels=1, out_channels=26)
     elif args.model == 'SegFormer3D':
         model = SegFormer3D(in_channels=1, num_classes=1)
     elif args.model == 'SwinUNetR':

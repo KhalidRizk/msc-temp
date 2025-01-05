@@ -168,7 +168,7 @@ datasets/
 wandb/
 
 # Trained models
-trained_models
+trained_models/
 
 # testing/debug
 debug_scripts/

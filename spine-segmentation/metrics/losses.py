@@ -1,12 +1,10 @@
 import math
-import numpy as np
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics
 from monai import losses
-from monai.metrics import HausdorffDistanceMetric
 
 ''' for:
 
@@ -56,10 +54,17 @@ class DiceLoss(nn.Module):
 
 
 ###########################################################################
+
+class_weights = torch.tensor([
+    0.1076, 0.0828, 0.1177, 0.1229, 0.1005, 0.0777, 0.0408, 0.0211, 0.0217,
+    0.0246, 0.0236, 0.0226, 0.0208, 0.0190, 0.0175, 0.0136, 0.0117, 0.0103,
+    0.0082, 0.0062, 0.0054, 0.0048, 0.0048, 0.0049, 0.1095
+])
+
 class DiceCELoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self._loss = losses.DiceCELoss(to_onehot_y=True, softmax=True)
+        self._loss = losses.DiceCELoss(to_onehot_y=False, softmax=True)
 
     def forward(self, predicted, target):
         loss = self._loss(predicted, target)
@@ -257,77 +262,65 @@ class KLDiv(nn.Module):
 
 ###########################################################################
 class F1Score(nn.Module):
-    def __init__(self, num_classes, mode='multiclass'):
+    def __init__(self):
         super().__init__()
-        self._loss = torchmetrics.F1Score(task=mode, num_classes=num_classes)
+        self._f1 = torchmetrics.F1Score(task='multiclass', num_classes=26)
 
     def forward(self, predicted, target):
-        predicted = F.softmax(predicted, dim=1)
-        return self._loss(predicted, target)
+        predicted_probs = F.softmax(predicted, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        f1 = self._f1(predicted_probs, target_labels)
+        return f1
+
 
 ###########################################################################
 class Recall(nn.Module):
-    def __init__(self, num_classes, mode='multiclass'):
+    def __init__(self):
         super().__init__()
-        self._loss = torchmetrics.Recall(task=mode, num_classes=num_classes)
+        self._recall = torchmetrics.Recall(task='multiclass', num_classes=26)
 
     def forward(self, predicted, target):
-        predicted = F.softmax(predicted, dim=1)
-        return self._loss(predicted, target)
+        predicted_probs = F.softmax(predicted, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        recall = self._recall(predicted_probs, target_labels)
+        return recall
 
 
 ###########################################################################
 class Precision(nn.Module):
-    def __init__(self, num_classes, mode='multiclass'):
+    def __init__(self):
         super().__init__()
-        self._loss = torchmetrics.Precision(task=mode, num_classes=num_classes)
+        self._precision = torchmetrics.Precision(task='multiclass', num_classes=26)
 
     def forward(self, predicted, target):
-        predicted = F.softmax(predicted, dim=1)
-        return self._loss(predicted, target)
+        predicted_probs = F.softmax(predicted, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        precision = self._precision(predicted_probs, target_labels)
+        return precision
 
 
 ###########################################################################
-class HausdorffDTLoss(nn.Module):
+class Hausdorff(nn.Module):
     def __init__(self):
         super().__init__()
-        self._loss = losses.HausdorffDTLoss(softmax=True, reduction='mean')
+        self._loss = losses.HausdorffDTLoss(sigmoid=True, reduction='mean')
 
     def forward(self, predicted, target):
         loss = self._loss(predicted, target)
         return loss
 
-class HausdorffMetric(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self._metric = HausdorffDistanceMetric(
-            include_background=True,
-            percentile=95 
-        )
-
-    def forward(self, predicted, target):
-        pred_binary = (predicted > 0.5).float()
-        target_binary = (target > 0.5).float()
-        
-        if pred_binary.ndim == 3:
-            pred_binary = pred_binary.unsqueeze(0).unsqueeze(1)
-            target_binary = target_binary.unsqueeze(0).unsqueeze(1)
-        elif pred_binary.ndim == 4:
-            pred_binary = pred_binary.unsqueeze(1)
-            target_binary = target_binary.unsqueeze(1)
-            
-        return self._metric(pred_binary, target_binary)
 
 ###########################################################################
 class Jaccard(nn.Module):
-    def __init__(self, num_classes, mode='multiclass'):
+    def __init__(self):
         super().__init__()
-        self._loss = torchmetrics.JaccardIndex(task=mode, num_classes=num_classes)
+        self._jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=26)
 
     def forward(self, predicted, target):
-        predicted = F.softmax(predicted, dim=1)
-        loss = self._loss(predicted, target)
-        return loss
+        predicted_probs = F.softmax(predicted, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        jaccard = self._jaccard(predicted_probs, target_labels)
+        return jaccard
 
 
 ###########################################################################
@@ -352,70 +345,3 @@ class R2(nn.Module):
         predicted = F.sigmoid(predicted)
         loss = self._loss(predicted.flatten(), target.flatten())
         return loss
-
-###########################################################################
-class DiceCoefficient(nn.Module):
-    def __init__(self, empty_score=1.0):
-        super().__init__()
-        self.empty_score = empty_score
-
-    def forward(self, predicted, target):
-        pred = predicted.detach().cpu().numpy() > 0.5
-        targ = target.detach().cpu().numpy() > 0.5
-
-        if pred.shape != targ.shape:
-            raise ValueError("Shape mismatch: pred and target must have the same shape.")
-
-        im_sum = pred.sum() + targ.sum()
-        if im_sum == 0:
-            return torch.tensor(self.empty_score)
-
-        intersection = np.logical_and(pred, targ)
-        dice = 2. * intersection.sum() / im_sum
-
-        return torch.tensor(dice)
-
-class IdentificationRate(nn.Module):
-    def __init__(self, max_vert_idx=25):  # typically 25 vertebrae
-        super().__init__()
-        self.max_vert_idx = max_vert_idx
-
-    def _construct_distance_matrix(self, actual, pred):
-        act_stack = np.transpose(
-            np.repeat(np.expand_dims(actual, -1), self.max_vert_idx, axis=2), 
-            [2, 1, 0]
-        )
-        pred_stack = np.repeat(np.expand_dims(pred, -1), self.max_vert_idx, axis=2)
-        d_mat = np.sqrt(np.sum(np.square(pred_stack - act_stack), axis=1))
-        return d_mat
-
-    def forward(self, cent_list_pred, cent_list_gt):
-        if torch.is_tensor(cent_list_pred):
-            cent_list_pred = cent_list_pred.detach().cpu().numpy()
-        if torch.is_tensor(cent_list_gt):
-            cent_list_gt = cent_list_gt.detach().cpu().numpy()
-
-        hit_list = np.full(self.max_vert_idx, np.nan)
-
-        verts_in_im = np.argwhere(~np.isnan(cent_list_gt[:, 0])) + 1
-        verts_in_pred = np.argwhere(~np.isnan(cent_list_pred[:, 0])) + 1
-
-        hit_list[verts_in_im - 1] = 0
-
-        intersect_verts = np.intersect1d(verts_in_im, verts_in_pred)
-
-        if intersect_verts.size == 0:
-            return torch.tensor(0.)
-
-        d_mat = self._construct_distance_matrix(cent_list_gt, cent_list_pred)
-        d_mat_verts = d_mat[intersect_verts - 1, :][:, intersect_verts - 1]
-
-        mask = np.ones_like(d_mat_verts, dtype=bool)
-        mask[range(mask.shape[0]), np.argmin(d_mat_verts, axis=1)] = False
-        d_mat_verts[mask] = np.nan
-
-        d_id_verts = np.copy(np.diagonal(d_mat_verts))
-        d_id_verts[d_id_verts > 20.] = np.nan
-
-        hits = np.count_nonzero(~np.isnan(d_id_verts))
-        return torch.tensor(float(hits) / len(verts_in_im))  # Return as percentage

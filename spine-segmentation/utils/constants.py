@@ -1,7 +1,6 @@
 import multiprocessing
 from pathlib import Path
 from typing import Tuple, Union
-import numpy as np
 
 import h5py
 import hdf5plugin
@@ -19,7 +18,6 @@ remapping_cervical_thoraic_lumbar = {
 
 remapping_binary = {key: 1 for key in list(range(1, 29))}
 
-# remapping_int = {key: int(key) for key in np.arange(1, 29, dtype=float)}
 
 HEATMAP = 'heatmap'
 CTDS = 'ctds'
