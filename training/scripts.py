@@ -168,15 +168,14 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer, 
             targets = data[target][tio.DATA]
 
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-            # print("inputs:", inputs.min(), inputs.max(), inputs.shape)
-            # print("targets:", targets.min(), targets.max(), targets.shape)
+            print("inputs:", inputs.min(), inputs.max(), inputs.shape)
+            print("targets:", targets.min(), targets.max(), targets.shape)
 
             optimizer.zero_grad()
-
             outputs = model(inputs)
-            total_loss = metric_handler.update(outputs, targets, accumulate_loss=True)
+            print("outputs:", outputs.min(), outputs.max(), outputs.shape)
 
-            # print("outputs:", outputs.min(), outputs.max(), outputs.shape)
+            total_loss = metric_handler.update(outputs, targets, accumulate_loss=True)
 
             if total_loss is not None:
                 total_loss.backward()
@@ -306,7 +305,7 @@ def get_args():
     parser.add_argument('--data_path', type=str, required=True, help='Path to the dataset')
     parser.add_argument('--model_name', type=str, required=True, help='Name of the model for saving/loading')
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs for training')
-    parser.add_argument('--batch_size', type=int, default=4, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=1, help='Batch size for training')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate for the optimizer')
     parser.add_argument('--input_shape', type=int, nargs=3, default=(64, 64, 128), help='Input shape for the model')
     parser.add_argument('--model', type=str, default='UNet', help='Model architecture')
@@ -325,7 +324,7 @@ def get_model(args):
     elif args.model == 'SegFormer3D':
         model = SegFormer3D(in_channels=1, num_classes=1)
     elif args.model == 'SwinUNetR':
-        model = MonaiSwinUNetR(img_size=args.input_shape, in_channels=1, out_channels=1)
+        model = MonaiSwinUNetR(input_size=(96,96,128))
     elif args.model == 'UNet':
         model = MonaiUNet(in_channels=1, class_num=1)
     elif args.model == 'MUNet':

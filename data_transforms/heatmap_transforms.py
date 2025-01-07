@@ -36,13 +36,13 @@ def heatmap_transforms(data_shape: Tuple[int, int, int]):
         tio.RandomGamma(log_gamma=0.3),
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
-        LabelToHeatmap(mode='distance', threshold_value=0.5, blur_output=1.0),
+        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
     ])
 
     spine_loc_val_post = tio.Compose([
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
-        LabelToHeatmap(mode='distance', threshold_value=0.5, blur_output=1.0),
+        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
     ])
 
     spine_loc_train = tio.Compose([

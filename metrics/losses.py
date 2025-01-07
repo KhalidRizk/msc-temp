@@ -172,7 +172,7 @@ class bbIoU(nn.Module):
     def forward(self, pred, target):
         batch_size = pred.size(0)
         iou_sum = 0.0
-        pred = F.sigmoid(pred)
+        pred = F.softmax(pred, dim=1)
         for i in range(batch_size):
             pred_bbox = self.extract_bbox(pred[i] > self.threshold)
             target_bbox = self.extract_bbox(target[i] > self.threshold)
@@ -242,7 +242,7 @@ class RMSE(nn.Module):
         self.eps = eps
 
     def forward(self, predicted, target):
-        predicted = F.sigmoid(predicted)
+        predicted = F.softmax(predicted, dim=1)
         loss = torch.sqrt(self._loss(predicted, target) + self.eps)
         return loss
 
@@ -330,7 +330,7 @@ class MAE(nn.Module):
         self._loss = nn.L1Loss(reduction='mean')
 
     def forward(self, predicted, target):
-        predicted = F.sigmoid(predicted)
+        predicted = F.softmax(predicted, dim=1)
         loss = self._loss(predicted, target)
         return loss
 
@@ -342,6 +342,6 @@ class R2(nn.Module):
         self._loss = torchmetrics.R2Score()
 
     def forward(self, predicted, target):
-        predicted = F.sigmoid(predicted)
+        predicted = F.softmax(predicted, dim=1)
         loss = self._loss(predicted.flatten(), target.flatten())
         return loss

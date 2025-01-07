@@ -7,10 +7,9 @@ class MonaiSwinUNetR(nn.Module):
         super(MonaiSwinUNetR, self).__init__()
         self.model = SwinUNETR(img_size=input_size, 
                                in_channels=1,
-                               out_channels=1,
+                               out_channels=25,
                                use_checkpoint=True,
-                               spatial_dims=3,
-                               )
+                               spatial_dims=3,)
 
     def forward(self, x):
         logits = self.model(x)

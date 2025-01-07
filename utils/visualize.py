@@ -42,10 +42,21 @@ def visualize_spine_localization_heatmap_detailed(subject: tio.Subject, output_p
 
         inputs, label = subject[tio.IMAGE][tio.DATA], subject[tio.LABEL][tio.DATA]
         device = next(model.parameters()).device if model else torch.device('cpu')
-
+        print(f"Labels: {label}")
+        print("50" * 50)
+        print(f"Inputs Shape: {inputs.shape}")
+        print(f"Inputs Max: {inputs.Max}")
+        print(f"Inputs Type: {inputs.type}")
+        print("50" * 50)
+        
         outputs = model(inputs.unsqueeze(0).to(device)).squeeze(0).cpu() if model else torch.zeros_like(label)
         outputs = act(outputs)
         inputs = inputs.cpu()
+        
+        print(f"Outputs Shape: {outputs.shape}")
+        print(f"Outputs Max: {outputs.Max}")
+        print(f"Outputs Type: {outputs.type}")
+        print(lol)
 
         heatmap = subject.get(HEATMAP, {'data': torch.zeros_like(label)})[tio.DATA].squeeze(0).cpu()
         heatmap_bbox = create_bbox_image(compute_bbox3d(heatmap), subject.spatial_shape) if torch.any(heatmap) else None
