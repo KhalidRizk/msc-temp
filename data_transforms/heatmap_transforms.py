@@ -3,6 +3,7 @@ from typing import Tuple
 import torchio as tio
 from data_transforms.classes import LabelToHeatmap, PadDimTo, PadToRatio, AlgorithmicDenoise, CubicResize
 from utils.misc import transform_timeit
+from torchio.transforms import OneHot 
 
 
 def heatmap_transforms(data_shape: Tuple[int, int, int]):
@@ -27,7 +28,7 @@ def heatmap_transforms(data_shape: Tuple[int, int, int]):
         tio.Blur(std = 0.75), # SmoothingRecursiveGaussian(0.75)
         PadToRatio(ratio=(1,1,2)),
         tio.Resize(target_shape=data_shape),
-        tio.RescaleIntensity(out_min_max=(0,1)),
+        tio.RescaleIntensity(out_min_max=(0,1)),    
     ])
 
     spine_loc_train_post = tio.Compose([
@@ -37,12 +38,14 @@ def heatmap_transforms(data_shape: Tuple[int, int, int]):
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
         LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
+        OneHot(num_classes=26),   
     ])
 
     spine_loc_val_post = tio.Compose([
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
         LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
+        OneHot(num_classes=26),    
     ])
 
     spine_loc_train = tio.Compose([

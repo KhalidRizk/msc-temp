@@ -184,7 +184,7 @@ if __name__ == "__main__":
     transform = tio.Compose([
         tio.ToCanonical(),
         tio.Resample(1),
-        tio.Clamp(-1024, 1024),
+        tio.Clamp(-1000, 800),
         tio.RescaleIntensity(out_min_max=(0, 1)),
         MaskCutout(threshold=0.5)
     ])

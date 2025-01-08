@@ -168,13 +168,13 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer, 
             targets = data[target][tio.DATA]
 
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-            print("inputs:", inputs.min(), inputs.max(), inputs.shape)
-            print("targets:", targets.min(), targets.max(), targets.shape)
+            # print("inputs:", inputs.min(), inputs.max(), inputs.shape)
+            # print("targets:", targets.min(), targets.max(), targets.shape)
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            print("outputs:", outputs.min(), outputs.max(), outputs.shape)
-
+            # print("outputs:", outputs.min(), outputs.max(), outputs.shape)
+            
             total_loss = metric_handler.update(outputs, targets, accumulate_loss=True)
 
             if total_loss is not None:

@@ -29,16 +29,20 @@ def otsu_torch(tensor: torch.Tensor) -> float:
     return t
 
 
-def compute_bbox3d(tensor: torch.Tensor, threshold: Union[float, str] = 0.5, format: str = 'min_max') -> Tuple[TypeTripletInt, TypeTripletInt]:
+def compute_bbox3d(
+    tensor: torch.Tensor,
+    threshold: Union[float, str] = 0.5,
+    format: str = "min_max",
+) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]:
     """
     Computes the 3D bounding box of a torch tensor after thresholding.
 
     Args:
         tensor (torch.Tensor): 3D tensor to compute bounding box from.
         threshold (float): Threshold value for binarizing the tensor.
-        format (str, optional): Format of the bounding box. 
+        format (str, optional): Format of the bounding box.
             - 'min_max': Returns ((min x, min y, min z), (max x, max y, max z))
-            - 'center_whd': Returns ((center x, center y, center z), (width, height, depth)). 
+            - 'center_whd': Returns ((center x, center y, center z), (width, height, depth)).
             Defaults to 'min_max'.
 
     Returns:
@@ -57,30 +61,36 @@ def compute_bbox3d(tensor: torch.Tensor, threshold: Union[float, str] = 0.5, for
     """
     dims = tensor.dim()
     assert dims == 3, f"Data should be 3D, not {dims}D"
-    
+
     if isinstance(threshold, str):
         threshold = otsu_torch(tensor)
-        
+
     tensor_thresholded = torch.where(tensor > threshold, torch.tensor(1), torch.tensor(0))
     nonzero_indices = torch.nonzero(tensor_thresholded, as_tuple=False)
-    
+
     if len(nonzero_indices) == 0:
-        bbox = (0, 0, 0, 0, 0, 0)
+        # Return zeroed bounding box in the correct nested tuple format
+        if format == "min_max":
+            bbox = ((0, 0, 0), (0, 0, 0))
+        elif format == "center_whd":
+            bbox = ((0, 0, 0), (0, 0, 0))
+        else:
+            raise ValueError("Unsupported bbox format. Please use 'min_max' or 'center_whd'.")
     else:
         min_coords = torch.min(nonzero_indices, dim=0)[0]
         max_coords = torch.max(nonzero_indices, dim=0)[0]
-        
-        if format == 'min_max':
-            bbox = (tuple(min_coords.numpy()), tuple(max_coords.numpy()))
-        elif format == 'center_whd':
+
+        if format == "min_max":
+            bbox = (tuple(min_coords.tolist()), tuple(max_coords.tolist()))
+        elif format == "center_whd":
             center = (min_coords + max_coords) / 2.0
             width = max_coords[0] - min_coords[0] + 1.0
             height = max_coords[1] - min_coords[1] + 1.0
             depth = max_coords[2] - min_coords[2] + 1.0
-            bbox = (tuple(center.int().numpy()), (width.int().item(), height.int().item(), depth.int().item()))
+            bbox = (tuple(center.int().tolist()), (width.int().item(), height.int().item(), depth.int().item()))
         else:
             raise ValueError("Unsupported bbox format. Please use 'min_max' or 'center_whd'.")
-    
+
     return bbox
 
 
