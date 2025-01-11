@@ -7,7 +7,7 @@ class MonaiSwinUNetR(nn.Module):
         super(MonaiSwinUNetR, self).__init__()
         self.model = SwinUNETR(img_size=input_size, 
                                in_channels=1,
-                               out_channels=25,
+                               out_channels=26,
                                use_checkpoint=True,
                                spatial_dims=3,)
 

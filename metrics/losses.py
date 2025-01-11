@@ -1,10 +1,12 @@
 import math
+import numpy as np
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics
 from monai import losses
+from monai.metrics.hausdorff_distance import HausdorffDistanceMetric
 
 ''' for:
 
@@ -54,13 +56,6 @@ class DiceLoss(nn.Module):
 
 
 ###########################################################################
-
-class_weights = torch.tensor([
-    0.1076, 0.0828, 0.1177, 0.1229, 0.1005, 0.0777, 0.0408, 0.0211, 0.0217,
-    0.0246, 0.0236, 0.0226, 0.0208, 0.0190, 0.0175, 0.0136, 0.0117, 0.0103,
-    0.0082, 0.0062, 0.0054, 0.0048, 0.0048, 0.0049, 0.1095
-])
-
 class DiceCELoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -345,3 +340,106 @@ class R2(nn.Module):
         predicted = F.softmax(predicted, dim=1)
         loss = self._loss(predicted.flatten(), target.flatten())
         return loss
+
+###########################################################################
+class IDRate(nn.Module):
+    """
+    ID Rate Loss specifically for vertebrae segmentation, where:
+    - Not all vertebrae may be present in a single scan
+    - Each vertebra should be identified correctly when present
+    - Missing vertebrae should not affect the score
+    
+    The rate considers:
+    1. Which vertebrae are actually present in the scan
+    2. How accurately each present vertebra is identified
+    3. Ignores vertebrae that are not in the current scan
+    
+    Returns a score between 0 and 1, where:
+    - 1 means all present vertebrae were correctly identified
+    - 0 means none of the present vertebrae were correctly identified
+    """
+    def __init__(self, num_classes=26):  # 25 vertebrae + background
+        super().__init__()
+        self.num_classes = num_classes
+        
+    def forward(self, predicted, target):
+        predicted_probs = F.softmax(predicted, dim=1)
+        predicted_labels = torch.argmax(predicted_probs, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        
+        batch_size = predicted.size(0)
+        batch_rates = []
+        
+        for b in range(batch_size):
+            present_vertebrae = torch.unique(target_labels[b])
+            present_vertebrae = present_vertebrae[present_vertebrae != 0]
+            
+            if len(present_vertebrae) == 0:
+                continue
+                
+            vertebra_rates = []
+            for vert_idx in present_vertebrae:
+                target_mask = (target_labels[b] == vert_idx)
+                if not target_mask.any():
+                    continue
+                    
+                pred_mask = (predicted_labels[b] == vert_idx)
+                correct_pixels = torch.logical_and(target_mask, pred_mask).sum()
+                total_pixels = target_mask.sum()
+                
+                vert_rate = correct_pixels.float() / total_pixels.float()
+                vertebra_rates.append(vert_rate)
+            
+            if vertebra_rates:
+                scan_rate = torch.stack(vertebra_rates).mean()
+                batch_rates.append(scan_rate)
+        
+        if not batch_rates:
+            return torch.tensor(0.0, device=predicted.device)
+            
+        return torch.stack(batch_rates).mean()
+
+
+###########################################################################
+class MulticlassHausdorff(nn.Module):
+    def __init__(self, num_classes=26):
+        super().__init__()
+        self.num_classes = num_classes
+        self._metric = HausdorffDistanceMetric(
+            include_background=True,
+            percentile=95
+        )
+
+    def forward(self, predicted, target):
+        predicted = F.softmax(predicted, dim=1)
+        predicted_labels = torch.argmax(predicted, dim=1)
+        target_labels = torch.argmax(target, dim=1)
+        
+        batch_size = predicted.size(0)
+        hausdorff_distances = []
+        
+        for b in range(batch_size):
+            class_distances = []
+            present_classes = torch.unique(target_labels[b])
+            
+            for c in present_classes:
+                pred_binary = (predicted_labels[b] == c).float()
+                target_binary = (target_labels[b] == c).float()
+                
+                if pred_binary.ndim == 3:
+                    pred_binary = pred_binary.unsqueeze(0).unsqueeze(1)
+                    target_binary = target_binary.unsqueeze(0).unsqueeze(1)
+                elif pred_binary.ndim == 4:
+                    pred_binary = pred_binary.unsqueeze(1)
+                    target_binary = target_binary.unsqueeze(1)
+                
+                distance = self._metric(pred_binary, target_binary)
+                class_distances.append(distance)
+            
+            if class_distances:
+                hausdorff_distances.append(torch.stack(class_distances).mean())
+        
+        if not hausdorff_distances:
+            return torch.tensor(float('inf')).to(predicted.device)
+            
+        return torch.stack(hausdorff_distances).mean()

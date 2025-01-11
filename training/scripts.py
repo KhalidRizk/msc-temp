@@ -324,7 +324,7 @@ def get_model(args):
     elif args.model == 'SegFormer3D':
         model = SegFormer3D(in_channels=1, num_classes=1)
     elif args.model == 'SwinUNetR':
-        model = MonaiSwinUNetR(input_size=(96,96,128))
+        model = MonaiSwinUNetR(input_size=(64, 64, 128))
     elif args.model == 'UNet':
         model = MonaiUNet(in_channels=1, class_num=1)
     elif args.model == 'MUNet':

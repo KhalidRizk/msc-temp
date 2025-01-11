@@ -2,6 +2,7 @@ from typing import Tuple
 
 import torchio as tio
 from data_transforms.classes import PadDimTo, MaskCutout, AlgorithmicDenoise
+from data_transforms.classes.hollow_fill import VertebraeFill
 from utils.constants import remapping_binary
 from utils.misc import transform_timeit
 from torchio.transforms import OneHot 
@@ -48,7 +49,7 @@ class MulticlassConvexHull(tio.Transform):
         return subject
 
 
-def binary_segmentation_transforms(data_shape: Tuple[int, int, int]):
+def multi_segmentation_transforms(data_shape: Tuple[int, int, int]):
     """
     Creates preprocessing and postprocessing transformations for spine segmentation.
 
@@ -79,14 +80,14 @@ def binary_segmentation_transforms(data_shape: Tuple[int, int, int]):
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(size=data_shape),
         OneHot(num_classes=26),
-        # MulticlassConvexHull(label_key='label')  # Apply convex hull to each class
+        # VertebraeFill(fill_holes=True, use_hull=True)
     ])
 
     spine_seg_val_post = tio.Compose([
         tio.RescaleIntensity(out_min_max=(0,1)), 
         PadDimTo(size=data_shape),
         OneHot(num_classes=26),
-        # MulticlassConvexHull(label_key='label')  # Apply convex hull to each class
+        # VertebraeFill(fill_holes=True, use_hull=True)
     ])
 
     spine_seg_train = tio.Compose([

@@ -3,7 +3,7 @@ pytest.main([__file__])
 
 import os
 
-from data_transforms import binary_segmentation_transforms
+from data_transforms import multi_segmentation_transforms
 from data_transforms.classes import *
 from metrics.losses import *
 from metrics.metric_handler import MetricHandler
@@ -27,7 +27,8 @@ def train_segmentation(args):
                     'F1Score': F1Score(),
                     'Recall': Recall(),
                     'Precision': Precision(),
-                    # 'Hausdorff': Hausdorff()
+                    'IDRate': IDRate(),
+                    'MulticlassHausdorff': MulticlassHausdorff()
     }
 
     for name, fn in eval_metrics.items():
@@ -52,7 +53,7 @@ def train_segmentation(args):
         'run_id': args.run_id
     }
 
-    transform_func = binary_segmentation_transforms(args.input_shape)
+    transform_func = multi_segmentation_transforms(args.input_shape)
     train_loop(config=config,
                      metric_handler=spine_seg_metrics,
                      model=model,
