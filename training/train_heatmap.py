@@ -59,7 +59,7 @@ def train_heatmap(args):
                model=model,
                model_name=args.model_name,
                transforms_func=transform,
-               visualize_func=visualize_spine_localization_heatmap,
+               visualize_func=visualize_spine_localization_heatmap_detailed,
                optimizer=optimizer,
                scheduler=scheduler,
                use_wandb=args.use_wandb)

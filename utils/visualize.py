@@ -75,7 +75,21 @@ def visualize_spine_localization_heatmap_detailed(subject: tio.Subject, output_p
         output_parts = output_path.split('.')
         output_name = f"{output_parts[0]}_{subject_id}.{output_parts[1]}"
 
-        subject.plot(output_path=output_name, show=show)
+        subject.plot(output_path=None, show=False)
+
+        fig = plt.gcf()
+        axes = fig.get_axes()
+
+        for ax in axes:
+            title = ax.get_title()
+            if title:
+                ax.set_title(title, fontsize=8, wrap=True)
+
+        if output_path:
+            plt.savefig(output_name)
+        if show:
+            plt.show()
+
         plt.close()
 
 
