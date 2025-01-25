@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import torchio as tio
-from data_transforms.classes import LabelToHeatmap, PadDimTo, PadToRatio, AlgorithmicDenoise, CubicResize
+from data_transforms.classes import LabelToHeatmap, PadDimTo, PadToRatio, AlgorithmicDenoise, CubicResize, MaskCutout
 from utils.misc import transform_timeit
 from torchio.transforms import OneHot 
 
@@ -24,11 +24,13 @@ def heatmap_transforms(data_shape: Tuple[int, int, int]):
     spine_loc_prep = tio.Compose([
         tio.ToCanonical(),
         tio.Resample(1), # 8
-        tio.Clamp(out_min = -1024),
-        tio.Blur(std = 0.75), # SmoothingRecursiveGaussian(0.75)
-        PadToRatio(ratio=(1,1,2)),
+        tio.Clamp(out_min=-1024, out_max=3071),
+        # tio.Blur(std = 0.75), # SmoothingRecursiveGaussian(0.75)
+        # PadToRatio(ratio=(1,1,2)),
         tio.Resize(target_shape=data_shape),
         tio.RescaleIntensity(out_min_max=(0,1)),    
+        # MaskCutout(threshold=0.5)
+
     ])
 
     spine_loc_train_post = tio.Compose([
@@ -37,15 +39,15 @@ def heatmap_transforms(data_shape: Tuple[int, int, int]):
         tio.RandomGamma(log_gamma=0.3),
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
-        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
-        OneHot(num_classes=25),   
+        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0, multichannel=True),
+        # OneHot(num_classes=26),
     ])
 
     spine_loc_val_post = tio.Compose([
         tio.RescaleIntensity(out_min_max=(0,1)),
         PadDimTo(data_shape),
-        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0),
-        OneHot(num_classes=25),    
+        LabelToHeatmap(mode='gaussian', sigma=3, threshold_value=0.5, blur_output=1.0, multichannel=True),
+        # OneHot(num_classes=26),    
     ])
 
     spine_loc_train = tio.Compose([

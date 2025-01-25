@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class MonaiSwinUNetR(nn.Module):
-    def __init__(self, input_size=(96,96,128)):
+    def __init__(self, input_size=(128, 128, 256)):
         super(MonaiSwinUNetR, self).__init__()
         self.model = SwinUNETR(img_size=input_size, 
                                in_channels=1,
@@ -18,7 +18,7 @@ class MonaiSwinUNetR(nn.Module):
 
 if __name__ == "__main__":
     from torchinfo import summary
-    shape = (96,96,128)
+    shape = (128, 128, 256)
     model = MonaiSwinUNetR(shape)
     # print(model)
     summary(model, input_size=(1,1,*shape))

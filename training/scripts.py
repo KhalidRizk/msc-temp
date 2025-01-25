@@ -22,6 +22,18 @@ from networks.segformer3d import ablation_models_segformer3d as ablation_segform
 from networks.attention_unet.ablation import ablation_list as ablation_att
 # from tqdm.notebook import tqdm
 
+import inspect
+def debug_tensor_shape(tensor: torch.Tensor, tensor_name: str = "tensor"):
+    """
+    Debugs and prints the shape of a tensor along with the function and file name.
+    
+    Args:
+        tensor (torch.Tensor): The tensor to debug.
+        tensor_name (str): Name of the tensor for identification.
+    """
+    current_function = inspect.currentframe().f_back.f_code.co_name
+    file_name = inspect.getfile(inspect.currentframe())
+    print(f"[DEBUG] {tensor_name}.shape: {tensor.shape} | Function: {current_function} | File: {file_name}")
 
 
 def SET_SEED(seed: int):
@@ -168,12 +180,12 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer: optim.Optimizer, 
             targets = data[target][tio.DATA]
 
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-            # print("inputs:", inputs.min(), inputs.max(), inputs.shape)
-            # print("targets:", targets.min(), targets.max(), targets.shape)
+            #debug_tensor_shape(inputs, "inputs")
+            #debug_tensor_shape(targets, "targets")
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            # print("outputs:", outputs.min(), outputs.max(), outputs.shape)
+            #debug_tensor_shape(outputs, "outputs")
             
             total_loss = metric_handler.update(outputs, targets, accumulate_loss=True)
 
@@ -194,13 +206,19 @@ def validate(model: nn.Module, dataloader: DataLoader, metric_handler: MetricHan
     with tqdm(total=len(dataloader), desc='Validation', unit='batch', leave=False) as pbar:
         for data in dataloader:
             pbar.set_postfix({'Processing': data['subject_id']})
+            if(str(data['subject_id'])=="['verse116']"):
+                continue;
 
             inputs = data[tio.IMAGE][tio.DATA]
             targets = data[target][tio.DATA]
-
+            #debug_tensor_shape(inputs, "inputs")
+            #debug_tensor_shape(targets, "targets")
+            
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
-
+            
             outputs = model(inputs)
+            #debug_tensor_shape(outputs, "outputs")
+            
             _ = metric_handler.update(outputs, targets, accumulate_loss=False)
 
             pbar.update(1)
@@ -307,7 +325,7 @@ def get_args():
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs for training')
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size for training')
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate for the optimizer')
-    parser.add_argument('--input_shape', type=int, nargs=3, default=(64, 64, 128), help='Input shape for the model')
+    parser.add_argument('--input_shape', type=int, nargs=3, default=(128, 128, 256), help='Input shape for the model')
     parser.add_argument('--model', type=str, default='UNet', help='Model architecture')
     parser.add_argument('--early_stopping', type=int, default=30, help='Early stopping criteria')
     parser.add_argument('--dataset_edition', type=int, default=19, help='VerSe dataset edition.')
@@ -324,7 +342,7 @@ def get_model(args):
     elif args.model == 'SegFormer3D':
         model = SegFormer3D(in_channels=1, num_classes=1)
     elif args.model == 'SwinUNetR':
-        model = MonaiSwinUNetR(input_size=(64, 64, 128))
+        model = MonaiSwinUNetR(input_size=(128, 128, 256))
     elif args.model == 'UNet':
         model = MonaiUNet(in_channels=1, class_num=1)
     elif args.model == 'MUNet':

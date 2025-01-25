@@ -14,6 +14,9 @@ from dataloader import VerSe, h5VerSe
 from tqdm import tqdm
 from utils.constants import COMPRESSION
 
+from data_transforms.heatmap_transforms import (get_heatmap_postpro,
+                                                get_heatmap_prepro,
+                                                heatmap_transforms)
 
 def transform_to_str(transform):
     transform_str = transform.__class__.__name__ + ":\n"
@@ -181,11 +184,12 @@ def dataset_preprocessing(
 
 
 if __name__ == "__main__":
-    transform = tio.Compose([
-        tio.ToCanonical(),
-        tio.Resample(1),
-        tio.Clamp(-1000, 800),
-        tio.RescaleIntensity(out_min_max=(0, 1)),
-        MaskCutout(threshold=0.5)
-    ])
-    dataset_preprocessing(out_name='cutout_dataset', transform=transform)
+    # transform = tio.Compose([
+    #     tio.ToCanonical(),
+    #     tio.Resample(1),
+    #     tio.Clamp(-1000, 800),
+    #     tio.RescaleIntensity(out_min_max=(0, 1)),
+    #     MaskCutout(threshold=0.5)
+    # ])
+    transform = get_heatmap_postpro((128, 128, 256))[0]
+    dataset_preprocessing(out_name='heatmap_dataset', transform=transform)

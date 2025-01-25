@@ -10,16 +10,33 @@ from torch.utils.data import Dataset
 from utils.constants import HEATMAP
 from utils.misc import combine_bboxes_image, compute_bbox3d, create_bbox_image
 
+import inspect
+def debug_tensor_shape(tensor: torch.Tensor, tensor_name: str = "tensor"):
+    """
+    Debugs and prints the shape of a tensor along with the function and file name.
+    
+    Args:
+        tensor (torch.Tensor): The tensor to debug.
+        tensor_name (str): Name of the tensor for identification.
+    """
+    current_function = inspect.currentframe().f_back.f_code.co_name
+    file_name = inspect.getfile(inspect.currentframe())
+    print(f"[DEBUG] {tensor_name}.shape: {tensor.shape} | Function: {current_function} | File: {file_name}")
 
 def visualize_spine_localization_heatmap(subject: tio.Subject, output_path: str, model: nn.Module, show: bool = False):
     model.eval()
     with torch.no_grad():
         inputs, targets = subject[tio.IMAGE][tio.DATA], subject[tio.LABEL][tio.DATA]
 
+        #debug_tensor_shape(inputs, "inputs")
+        #debug_tensor_shape(targets, "targets")
+
         device = next(model.parameters()).device
         inputs = inputs.unsqueeze(0).to(device)
 
         outputs = model(inputs)
+
+        #debug_tensor_shape(outputs, "outputs")
 
         inputs = inputs.squeeze(0).cpu()
         outputs = outputs.squeeze(0).cpu()
@@ -48,19 +65,17 @@ def visualize_spine_localization_heatmap_detailed(
         inputs, label = subject[tio.IMAGE][tio.DATA], subject[tio.LABEL][tio.DATA]
         device = next(model.parameters()).device if model else torch.device("cpu")
 
-        # print(f"Labels Unique: {torch.unique(label)}")
-        # print(f"Labels Shape: {label.shape}")
+        #debug_tensor_shape(inputs, "inputs")
+        #debug_tensor_shape(label, "label")
 
         outputs = model(inputs.unsqueeze(0).to(device)).squeeze(0).cpu() if model else torch.zeros_like(label)
         outputs = act(outputs, dim=1) 
         inputs = inputs.cpu()
 
-        # print(f"Outputs Unique: {torch.unique(outputs)}")
-        # print(f"Outputs Shape: {outputs.shape}")
+        #debug_tensor_shape(outputs, "outputs")
 
         heatmap = subject.get(HEATMAP, {"data": torch.zeros_like(label)})[tio.DATA].squeeze(0).cpu()
-        # print(f"Heatmap Shape: {heatmap.shape}")
-        # print(f"Heatmap Unique: {torch.unique(heatmap)}")
+        #debug_tensor_shape(heatmap, "heatmap")
 
         vertebrae_bboxes = []
         for channel_idx in range(outputs.shape[0]):
@@ -69,6 +84,8 @@ def visualize_spine_localization_heatmap_detailed(
             if torch.any(vertebra_heatmap):
                 bbox = compute_bbox3d(vertebra_heatmap)
                 vertebrae_bboxes.append(bbox)
+                print(bbox)
+                
             else:
                 vertebrae_bboxes.append(None)
 
@@ -80,7 +97,7 @@ def visualize_spine_localization_heatmap_detailed(
                 visualization_image = torch.where(bbox_image == 1, channel_idx + 1, visualization_image)
 
         combined_bboxes = combine_bboxes_image([visualization_image.unsqueeze(0)])
-        # print(f"Combined BBoxes Shape: {combined_bboxes.shape}")
+        #debug_tensor_shape(combined_bboxes, "combined_bboxes")
 
         subject = tio.Subject(
             image=tio.ScalarImage(tensor=inputs),
@@ -88,31 +105,27 @@ def visualize_spine_localization_heatmap_detailed(
             bboxes=tio.LabelMap(tensor=combined_bboxes),
         )
         
+        
         if torch.any(heatmap):
             subject.add_image(tio.LabelMap(tensor=heatmap), HEATMAP)
 
         if model:
             subject.add_image(tio.LabelMap(tensor=outputs), "Predicted heatmap")
 
-        # subject.plot(output_path=output_path, show=show)
         subject.plot(output_path=output_path, show=False)
 
         fig = plt.gcf()
         axes = fig.get_axes()
 
-        # Modify the titles
         for ax in axes:
             title = ax.get_title()
             if title:
-                # Split the title into two lines or make it smaller
-                ax.set_title(title, fontsize=8, wrap=True)  # Adjust fontsize and wrap as needed
+                ax.set_title(title, fontsize=8, wrap=True)
 
-        # Save or display the updated plot
         if output_path:
             plt.savefig(output_path)
         if show:
             plt.show()
-        # plt.close()
         plt.close()
 
 
@@ -123,8 +136,11 @@ def visualize_spine_segmentation(subject: tio.Subject, output_path: str, model: 
 
         device = next(model.parameters()).device
         inputs = inputs.unsqueeze(0).to(device)
+        #debug_tensor_shape(inputs, "inputs")
+        #debug_tensor_shape(targets, "targets")
 
         outputs = model(inputs)
+        #debug_tensor_shape(outputs, "outputs")
 
         inputs = inputs.squeeze(0).cpu()
         outputs = outputs.squeeze(0).cpu()
@@ -148,10 +164,13 @@ def visualize_vertebrae_segmentation(subject: tio.Subject, output_path: str, mod
 
         inputs, targets = subject[tio.IMAGE][tio.DATA], subject[tio.LABEL][tio.DATA]
         id = subject['subject_id']
+        #debug_tensor_shape(inputs, "inputs")
+        #debug_tensor_shape(targets, "targets")
 
         device = next(model.parameters()).device
         inputs = inputs.unsqueeze(0).to(device)
         outputs = model(inputs)
+        #debug_tensor_shape(outputs, "outputs")
 
         outputs = predict_segmentation(logits=outputs, mutually_exclusive=True)
 
@@ -184,11 +203,14 @@ def visualize_scalar(subject: tio.Subject, output_path: str, model: nn.Module, s
     model.eval()
     with torch.no_grad():
         inputs, targets = subject[tio.IMAGE][tio.DATA], subject[tio.LABEL][tio.DATA]
-
+        #debug_tensor_shape(inputs, "inputs")
+        #debug_tensor_shape(targets, "targets")
+        
         device = next(model.parameters()).device
         inputs = inputs.unsqueeze(0).to(device)
 
         outputs = model(inputs)
+        #debug_tensor_shape(outputs, "outputs")
 
         inputs = inputs.squeeze(0).cpu()
         outputs = outputs.squeeze(0).cpu()

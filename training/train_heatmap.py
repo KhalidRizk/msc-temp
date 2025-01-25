@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from training.scripts import (SET_SEED, get_args, load_model, train_loop,
                               validate, get_model)
 from utils.constants import DEVICE, HEATMAP, MODELS_PATH, NUM_WORKERS
-from utils.visualize import visualize_spine_localization_heatmap_detailed
+from utils.visualize import visualize_spine_localization_heatmap_detailed, visualize_spine_localization_heatmap
 
 
 

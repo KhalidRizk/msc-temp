@@ -135,6 +135,16 @@ class LabelToHeatmap(tio.LabelTransform):
             heatmap = blur(heatmap.unsqueeze(0)).squeeze() if heatmap.dim() < 4 else blur(heatmap).squeeze()
 
         heatmap /= torch.max(heatmap)
+        
+        if self.multichannel:
+            current_channels = heatmap.size(0)
+            if current_channels < 26:
+                padded_heatmap = torch.zeros(26, *self.shape, dtype=torch.float32)
+                padded_heatmap[:current_channels] = heatmap
+                heatmap = padded_heatmap
+            elif current_channels > 26:
+                heatmap = heatmap[:26]
+                
         return heatmap
 
     def get_label_bbox(self, mask, label):
